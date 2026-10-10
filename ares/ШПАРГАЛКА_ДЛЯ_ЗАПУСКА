@@ -1,0 +1,11 @@
+cd projectaresdiploma
+cd backend
+pip install -r requirements.txt (PIP ДОЛЖЕН БЫТЬ 24.+)
+python manage.py migrate/python manage.py runserver
+
+Запускаешь второй терминал - 
+cd projectaresdiploma
+cd frontend
+npm install
+npm run dev
+Готово! Проект запущен!
