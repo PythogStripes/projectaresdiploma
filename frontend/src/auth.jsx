@@ -30,7 +30,6 @@ export function AuthProvider({ children }) {
     try {
       await api('/api/auth/logout/', { method: 'POST' })
     } catch {
-      /* токен уже недействителен — не страшно */
     }
     clearSession()
     setUser(null)

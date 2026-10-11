@@ -1,17 +1,30 @@
-# Python
 __pycache__/
 *.py[cod]
-*.sqlite3
+*.egg-info/
+build/
 venv/
 .venv/
+env/
+backend/db.sqlite3
+backend/db.sqlite3-journal
+backend/staticfiles/
+backend/media/
 .env
-
-# Node
+.env.*
+*.env
 node_modules/
 dist/
+.vite/
 *.local
-
-# IDE / OS
+npm-debug.log*
+yarn-error.log*
 .idea/
 .vscode/
+*.swp
+*.swo
 .DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*.bak
+*.tmp

@@ -1,6 +1,3 @@
-/** Иконки «Арес». */
-
-/** Иконка пользователя (красится через currentColor). */
 export function UserIcon({ size = 18 }) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">

@@ -41,13 +41,11 @@ function aiPick(board, ai, hu, level) {
   const free = board.map((v, i) => (v ? null : i)).filter((v) => v !== null)
   if (!free.length) return null
 
-  // Лёгкий уровень: 60% случайный ход, иначе попытка выиграть/заблокировать.
   if (level === 'easy' && Math.random() < 0.6) {
     return free[Math.floor(Math.random() * free.length)]
   }
 
   if (level === 'easy') {
-    // мгновенная победа или блокировка, иначе случайно
     for (const i of free) {
       const t = [...board]; t[i] = ai
       if (winnerOf(t)) return i
@@ -59,23 +57,21 @@ function aiPick(board, ai, hu, level) {
     return free[Math.floor(Math.random() * free.length)]
   }
 
-  // Средний уровень: изредка ошибается, в остальном — полный минимакс.
   if (level === 'medium' && Math.random() < 0.3) {
     return free[Math.floor(Math.random() * free.length)]
   }
 
-  // Сложный уровень: полный минимакс — выиграть нельзя, только сыграть вничью.
   return minimax(board, true, ai, hu, 0).index
 }
 
 export default function TicTacToe() {
   const { user } = useAuth()
-  const [mode, setMode] = useState('ai') // 'ai' | 'hotseat'
-  const [level, setLevel] = useState('medium') // 'easy' | 'medium' | 'hard'
+  const [mode, setMode] = useState('ai')
+  const [level, setLevel] = useState('medium')
   const [playerMark, setPlayerMark] = useState('X')
   const [board, setBoard] = useState(Array(9).fill(null))
-  const [turn, setTurn] = useState('X') // X всегда начинает
-  const [win, setWin] = useState(null) // {player, line} | 'draw' | null
+  const [turn, setTurn] = useState('X')
+  const [win, setWin] = useState(null)
   const [note, setNote] = useState('')
   const [score, setScore] = useState({ w: 0, d: 0, l: 0 })
 
@@ -94,7 +90,6 @@ export default function TicTacToe() {
     [mode, playerMark, level],
   )
 
-  // Записываем результат партии против ИИ в лидерборд.
   useEffect(() => {
     if (!win || mode !== 'ai' || !user) return
     const result = win === 'draw' ? 'draw' : win.player === playerMark ? 'win' : 'loss'
@@ -118,10 +113,8 @@ export default function TicTacToe() {
     })
       .then((res) => setNote(res.detail || 'Результат сохранён.'))
       .catch(() => setNote('Не удалось сохранить результат.'))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [win])
 
-  // Ход компьютера.
   useEffect(() => {
     if (mode !== 'ai' || gameEnded || turn !== (playerMark === 'X' ? 'O' : 'X')) return
     const timer = setTimeout(() => {

@@ -3,14 +3,9 @@ import { Chess } from 'chess.js'
 import { api } from '../api'
 import { useAuth } from '../auth'
 
-// \uFE0E — текстовое начертание: без него ♟ на некоторых системах рисуется эмодзи.
 const GLYPHS = { k: '♚\uFE0E', q: '♛\uFE0E', r: '♜\uFE0E', b: '♝\uFE0E', n: '♞\uFE0E', p: '♟\uFE0E' }
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 
-/**
- * Текстура дерева (SVG-шум): волокна вытянуты по одной оси.
- * fx/fy — частота шума по осям, alpha — «тёмность» волокон.
- */
 const woodGrain = ({ fx, fy, seed, alpha }) =>
   'data:image/svg+xml,' +
   encodeURIComponent(
@@ -26,7 +21,6 @@ const GRAIN_VARS = {
   '--grain-frame': `url("${woodGrain({ fx: 0.004, fy: 0.045, seed: 23, alpha: 0.3 })}")`,
 }
 
-// Простой шахматный ИИ: минимакс с альфа-бета отсечением.
 const VALUE = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 }
 
 function evaluate(game) {
@@ -37,9 +31,7 @@ function evaluate(game) {
       const sq = board[r][c]
       if (!sq) continue
       let v = VALUE[sq.type]
-      // контроль центра
       v += (3.5 - Math.abs(3.5 - r)) * 3 + (3.5 - Math.abs(3.5 - c)) * 3
-      // продвижение пешек
       if (sq.type === 'p') v += sq.color === 'w' ? (6 - r) * 5 : (r - 1) * 5
       score += sq.color === 'w' ? v : -v
     }
@@ -56,7 +48,6 @@ function orderMoves(moves) {
 function minimax(game, depth, alpha, beta) {
   if (game.isGameOver()) {
     if (game.isCheckmate()) {
-      // Мат поставлен тому, чей сейчас ход: он проигрывает.
       return game.turn() === 'w' ? -99999 : 99999
     }
     return 0
@@ -103,22 +94,21 @@ function bestMove(game, depth) {
   return best || moves[0]
 }
 
-// Компонент
 export default function ChessPage() {
   const { user } = useAuth()
   const gameRef = useRef(new Chess())
   const [, forceTick] = useState(0)
   const rerender = useCallback(() => forceTick((x) => x + 1), [])
 
-  const [mode, setMode] = useState('ai') // 'ai' | 'hotseat'
-  const [level, setLevel] = useState('medium') // 'easy' | 'medium' | 'hard'
+  const [mode, setMode] = useState('ai')
+  const [level, setLevel] = useState('medium')
   const [playerColor, setPlayerColor] = useState('w')
   const [selected, setSelected] = useState(null)
   const [targets, setTargets] = useState([])
   const [lastMove, setLastMove] = useState(null)
   const [thinking, setThinking] = useState(false)
   const [saveNote, setSaveNote] = useState('')
-  const [finished, setFinished] = useState(null) // 'win'|'loss'|'draw'|null
+  const [finished, setFinished] = useState(null)
 
   const game = gameRef.current
 
@@ -172,7 +162,7 @@ export default function ChessPage() {
       if (g.isCheckmate()) {
         const loser = g.turn()
         if (mode === 'ai') result = loser === playerColor ? 'loss' : 'win'
-        else result = 'draw' // в хотсите результат не пишем в лидерборд
+        else result = 'draw'
       }
       if (mode === 'ai') {
         setFinished(result)
@@ -194,19 +184,18 @@ export default function ChessPage() {
             lvl === 'easy'
               ? (() => {
                   const ms = g.moves({ verbose: true })
-                  // лёгкий уровень: предпочитает взятия, иначе почти случайно
                   const caps = ms.filter((m) => m.captured)
                   const pool = caps.length && Math.random() < 0.5 ? caps : ms
                   return pool[Math.floor(Math.random() * pool.length)]
                 })()
               : lvl === 'medium'
-                ? // средний уровень: ищет на 2 хода вперёд, изредка ошибается
+                ?
                   (Math.random() < 0.18
                     ? g.moves({ verbose: true })[
                         Math.floor(Math.random() * g.moves({ verbose: true }).length)
                       ]
                     : bestMove(g, 2))
-                : // сложный уровень: минимакс с альфа-бета на глубину 3
+                :
                   bestMove(g, 3)
           if (move) {
             g.move(move)
@@ -257,7 +246,6 @@ export default function ChessPage() {
           aiMove(g, level)
         }
       } catch {
-        /* невозможный ход — игнорируем */
       }
       return
     }
@@ -310,7 +298,6 @@ export default function ChessPage() {
         <div
           key={sqName}
           className={classes.filter(Boolean).join(' ')}
-          // смещение ≥ размера клетки: шов повторения текстуры не попадает внутрь клетки
           style={{ '--gx': `${80 + ((c * 53 + r * 97) % 180)}px`, '--gy': `${80 + ((c * 131 + r * 29) % 180)}px` }}
           onClick={() => onSquare(sqName)}
         >

@@ -1,9 +1,5 @@
 import KnightArt from './KnightArt'
 
-/**
- * Логотип «Арес» — шахматный конь с лавровым венком в восьмиугольной рамке.
- * Цвета берутся из темы (--logo, --accent2); перекрашивается вместе с темой.
- */
 export default function Logo({ size = 52, className = '' }) {
   return (
     <svg
