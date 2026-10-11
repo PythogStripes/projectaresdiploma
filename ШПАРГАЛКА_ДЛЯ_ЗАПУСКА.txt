@@ -1,0 +1,12 @@
+cd backend # Запускаем сервер
+pip install -r requirements.txt # Установка зависимостей (ЗАМЕТЬТЕ ЧТО PYTHON ДОЛЖЕН БЫТЬ В VSCODE (как расширение) и pip 24.0+ (не выше 24))
+python manage.py migrate 
+python manage.py runserver
+
+Если запустился сервер - переходим к frontend
+
+cd frontend 
+npm install (должен вывести 0 vulnerabilities)
+npm run dev
+
+Если все прошло - поздравляю,вы запустили мой проект ЛОКАЛЬНО! 
