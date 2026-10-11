@@ -10,12 +10,16 @@ import Register from './pages/Register'
 import Profile from './pages/Profile'
 import AdminPanel from './pages/AdminPanel'
 
+// «Охранник» для закрытых страниц. Проверяет, вошёл ли пользователь,
+// и при необходимости не пускает дальше.
 function RequireAuth({ children, staffOnly = false }) {
   const { user } = useAuth()
   const location = useLocation()
+  // Нет пользователя — отправляем на страницу входа, запомнив, куда он шёл.
   if (!user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />
   }
+  // Страница только для админов, а вошедший — не админ: показываем заглушку.
   if (staffOnly && !user.is_staff) {
     return (
       <main className="page">
@@ -26,13 +30,16 @@ function RequireAuth({ children, staffOnly = false }) {
       </main>
     )
   }
+  // Всё хорошо — показываем запрошенную страницу.
   return children
 }
 
 export default function App() {
   return (
     <div className="app-shell">
+      {/* Шапка сайта с меню и кнопками входа — видна на всех страницах. */}
       <Header />
+      {/* Карта страниц: какой адрес показывает какую страницу. */}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/chess" element={<Chess />} />
@@ -40,14 +47,17 @@ export default function App() {
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        {/* Профиль — только для вошедших. */}
         <Route
           path="/profile"
           element={<RequireAuth><Profile /></RequireAuth>}
         />
+        {/* Админ-панель — только для администраторов сайта. */}
         <Route
           path="/admin-panel"
           element={<RequireAuth staffOnly><AdminPanel /></RequireAuth>}
         />
+        {/* Любой другой адрес — просто на главную. */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <footer className="site-footer">

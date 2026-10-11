@@ -1,3 +1,6 @@
+// Простой набор иконок, нарисованных прямо в SVG (без внешних библиотек).
+
+// Иконка «пользователь»: круглая голова и «плечи».
 export function UserIcon({ size = 18 }) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">

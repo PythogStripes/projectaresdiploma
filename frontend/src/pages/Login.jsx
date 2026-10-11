@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 
+// Страница входа. После успешного входа возвращает туда, откуда пришёл человек
+// (например, если он шёл в профиль, но его перекинуло на логин).
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -9,19 +11,19 @@ export default function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState(false) // «занят» — пока идёт запрос
 
   const onSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault() // не перезагружаем страницу по сабмиту формы
     setError('')
     setBusy(true)
     try {
       await login(username, password)
-      navigate(location.state?.from || '/')
+      navigate(location.state?.from || '/') // вернуть «домой» или туда, куда шёл
     } catch (err) {
       setError(err.message || 'Неверное имя пользователя или пароль.')
     } finally {
-      setBusy(false)
+      setBusy(false) // в любом случае снимаем «занят»
     }
   }
 

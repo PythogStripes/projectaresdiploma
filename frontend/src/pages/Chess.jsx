@@ -3,9 +3,16 @@ import { Chess } from 'chess.js'
 import { api } from '../api'
 import { useAuth } from '../auth'
 
-const GLYPHS = { k: '♚\uFE0E', q: '♛\uFE0E', r: '♜\uFE0E', b: '♝\uFE0E', n: '♞\uFE0E', p: '♟\uFE0E' }
-const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+// Страница шахмат. Правила полностью берёт на себя библиотека chess.js
+// (рокировка, взятие на проходе, превращение пешки, шах/мат/пат).
+// Наш код рисует доску, обрабатывает ходы и «учит» компьютер играть.
 
+// Символы фигур для отображения (\uFE0E — чтобы был текстовый, а не эмодзи).
+const GLYPHS = { k: '♚\uFE0E', q: '♛\uFE0E', r: '♜\uFE0E', b: '♝\uFE0E', n: '♞\uFE0E', p: '♟\uFE0E' }
+const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] // буквы столбцов
+
+// Генератор текстуры «дерева» как data-URL: картинка из SVG с шумом.
+// Используется, чтобы доска и рамка выглядели реалистично, без картинок-файлов.
 const woodGrain = ({ fx, fy, seed, alpha }) =>
   'data:image/svg+xml,' +
   encodeURIComponent(
@@ -15,14 +22,18 @@ const woodGrain = ({ fx, fy, seed, alpha }) =>
     `<rect width='260' height='260' filter='url(#w)'/></svg>`,
   )
 
+// Три разные текстуры: для светлых клеток, тёмных и рамки доски.
 const GRAIN_VARS = {
   '--grain-light': `url("${woodGrain({ fx: 0.006, fy: 0.05, seed: 5, alpha: 0.2 })}")`,
   '--grain-dark': `url("${woodGrain({ fx: 0.008, fy: 0.07, seed: 11, alpha: 0.34 })}")`,
   '--grain-frame': `url("${woodGrain({ fx: 0.004, fy: 0.045, seed: 23, alpha: 0.3 })}")`,
 }
 
+// «Ценность» фигур — базовая оценка материала для алгоритма компьютера.
 const VALUE = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 }
 
+// Оценка позиции с точки зрения белых (положительное число — перевес белых).
+// Чем больше контроль центра и продвинутые пешки — тем лучше.
 function evaluate(game) {
   let score = 0
   const board = game.board()
@@ -31,7 +42,9 @@ function evaluate(game) {
       const sq = board[r][c]
       if (!sq) continue
       let v = VALUE[sq.type]
+      // Небольшой бонус за положение ближе к центру доски.
       v += (3.5 - Math.abs(3.5 - r)) * 3 + (3.5 - Math.abs(3.5 - c)) * 3
+      // Пешкам добавляем за продвижение вперёд.
       if (sq.type === 'p') v += sq.color === 'w' ? (6 - r) * 5 : (r - 1) * 5
       score += sq.color === 'w' ? v : -v
     }
@@ -39,33 +52,41 @@ function evaluate(game) {
   return score
 }
 
+// Сортируем ходы, ставя взятия в начало. Это помогает альфа-бета отсечению
+// быстрее отбрасывать заведомо плохие ветки (эвристика упорядочивания).
 function orderMoves(moves) {
   return [...moves].sort(
     (a, b) => (b.captured ? VALUE[b.captured] : 0) - (a.captured ? VALUE[a.captured] : 0),
   )
 }
 
+// Минимакс с альфа-бета отсечением: считает, к чему приведёт партия при
+// наилучшей игре обеих сторон на заданную глубину. alpha/beta отсекают ветки,
+// которые заведомо не выберут (сильно ускоряет перебор).
 function minimax(game, depth, alpha, beta) {
   if (game.isGameOver()) {
+    // Мат — очень большой штраф/бонус; иначе (пат, ничья) — ноль.
     if (game.isCheckmate()) {
       return game.turn() === 'w' ? -99999 : 99999
     }
     return 0
   }
-  if (depth === 0) return evaluate(game)
+  if (depth === 0) return evaluate(game) // дошли до предела глубины — оцениваем позицию
 
   const moves = orderMoves(game.moves({ verbose: true }))
   if (game.turn() === 'w') {
+    // Ход белых — максимизируем оценку.
     let best = -Infinity
     for (const m of moves) {
       game.move(m)
       best = Math.max(best, minimax(game, depth - 1, alpha, beta))
       game.undo()
       alpha = Math.max(alpha, best)
-      if (beta <= alpha) break
+      if (beta <= alpha) break // отсечение: соперник это не допустит
     }
     return best
   }
+  // Ход чёрных — минимизируем оценку.
   let best = Infinity
   for (const m of moves) {
     game.move(m)
@@ -77,6 +98,7 @@ function minimax(game, depth, alpha, beta) {
   return best
 }
 
+// Выбор лучшего хода для того, чей сейчас ход, на заданную глубину.
 function bestMove(game, depth) {
   const color = game.turn()
   const moves = orderMoves(game.moves({ verbose: true }))
@@ -91,27 +113,31 @@ function bestMove(game, depth) {
       best = m
     }
   }
+  // Если по какой-то причине хода нет — берём первый из списка (запасной вариант).
   return best || moves[0]
 }
 
 export default function ChessPage() {
   const { user } = useAuth()
+  // Объект партии из chess.js лежит в useRef — он мутируется, но не вызывает
+  // перерисовку сам по себе. Для перерисовки используем forceTick (ниже).
   const gameRef = useRef(new Chess())
   const [, forceTick] = useState(0)
   const rerender = useCallback(() => forceTick((x) => x + 1), [])
 
-  const [mode, setMode] = useState('ai')
-  const [level, setLevel] = useState('medium')
-  const [playerColor, setPlayerColor] = useState('w')
-  const [selected, setSelected] = useState(null)
-  const [targets, setTargets] = useState([])
-  const [lastMove, setLastMove] = useState(null)
-  const [thinking, setThinking] = useState(false)
-  const [saveNote, setSaveNote] = useState('')
-  const [finished, setFinished] = useState(null)
+  const [mode, setMode] = useState('ai') // 'ai' или 'hotseat'
+  const [level, setLevel] = useState('medium') // сложность компьютера
+  const [playerColor, setPlayerColor] = useState('w') // цвет игрока ('w' — белые)
+  const [selected, setSelected] = useState(null) // выбранная клетка (откуда ходим)
+  const [targets, setTargets] = useState([]) // подсветка возможных ходов
+  const [lastMove, setLastMove] = useState(null) // последний ход (для подсветки)
+  const [thinking, setThinking] = useState(false) // компьютер считает?
+  const [saveNote, setSaveNote] = useState('') // сообщение о сохранении
+  const [finished, setFinished] = useState(null) // итог партии
 
   const game = gameRef.current
 
+  // Куда может пойти выбранная фигура (список клеток-целей).
   const legalTargetsFrom = useMemo(() => {
     if (!selected) return []
     return game
@@ -119,6 +145,7 @@ export default function ChessPage() {
       .map((m) => m.to)
   }, [selected, game])
 
+  // Человеческая строка состояния партии (чей ход, шах, исход и т.п.).
   const statusText = useMemo(() => {
     const turnName = game.turn() === 'w' ? 'белых' : 'чёрных'
     if (game.isGameOver()) {
@@ -139,6 +166,7 @@ export default function ChessPage() {
     return game.inCheck() ? `Ход ${turnName} — шах!` : `Ход ${turnName}`
   }, [game, mode, playerColor, thinking])
 
+  // Отправить результат партии на сервер (только для вошедших в режиме vs ИИ).
   const saveResult = useCallback(
     async (result, moves) => {
       if (!user) return
@@ -155,14 +183,16 @@ export default function ChessPage() {
     [user, mode, level],
   )
 
+  // Проверить конец партии и зафиксировать результат.
   const checkEnd = useCallback(
     (g) => {
       if (!g.isGameOver()) return false
       let result = 'draw'
       if (g.isCheckmate()) {
+        // Проигравший — тот, чей сейчас ход (мат объявлен ему).
         const loser = g.turn()
         if (mode === 'ai') result = loser === playerColor ? 'loss' : 'win'
-        else result = 'draw'
+        else result = 'draw' // в режиме «два игрока» в лидерборд не пишем
       }
       if (mode === 'ai') {
         setFinished(result)
@@ -175,22 +205,26 @@ export default function ChessPage() {
     [mode, playerColor, saveResult],
   )
 
+  // Ход компьютера с небольшой задержкой (чтобы не было мгновенно).
   const aiMove = useCallback(
     (g, lvl) => {
       setThinking(true)
       setTimeout(() => {
         try {
+          // Разные уровни: лёгкий почти случайный, средний иногда считает,
+          // сложный — честный минимакс на глубину 3.
           const move =
             lvl === 'easy'
               ? (() => {
                   const ms = g.moves({ verbose: true })
                   const caps = ms.filter((m) => m.captured)
+                  // Половину времени предпочитает взять фигуру, если может.
                   const pool = caps.length && Math.random() < 0.5 ? caps : ms
                   return pool[Math.floor(Math.random() * pool.length)]
                 })()
               : lvl === 'medium'
                 ?
-                  (Math.random() < 0.18
+                  (Math.random() < 0.18 // ~18% случайных ходов «для живости»
                     ? g.moves({ verbose: true })[
                         Math.floor(Math.random() * g.moves({ verbose: true }).length)
                       ]
@@ -211,6 +245,7 @@ export default function ChessPage() {
     [checkEnd, rerender],
   )
 
+  // Начать новую партию. Если игрок играет чёрными против ИИ — сразу ходит ИИ.
   const newGame = useCallback(
     (nextMode = mode, nextColor = playerColor, nextLevel = level) => {
       gameRef.current = new Chess()
@@ -230,18 +265,21 @@ export default function ChessPage() {
     [mode, playerColor, level, aiMove, rerender],
   )
 
+  // Клик по клетке доска: выбираем фигуру или делаем ход.
   const onSquare = (sq) => {
-    if (finished || thinking) return
-    if (mode === 'ai' && game.turn() !== playerColor) return
+    if (finished || thinking) return // партия кончилась или ИИ считает — клики игнорим
+    if (mode === 'ai' && game.turn() !== playerColor) return // сейчас не наш ход
     const g = game
 
+    // Если фигура выбрана и кликнули по доступной клетке — делаем ход.
     if (selected && legalTargetsFrom.includes(sq)) {
       try {
-        const move = g.move({ from: selected, to: sq, promotion: 'q' })
+        const move = g.move({ from: selected, to: sq, promotion: 'q' }) // пешка всегда в ферзи
         setLastMove({ from: move.from, to: move.to })
         setSelected(null)
         setTargets([])
         rerender()
+        // Если партия не закончилась и это режим против ИИ — передаём ход компьютеру.
         if (!checkEnd(g) && mode === 'ai') {
           aiMove(g, level)
         }
@@ -250,6 +288,7 @@ export default function ChessPage() {
       return
     }
 
+    // Иначе пробуем выбрать фигуру на клетке.
     const moves = g.moves({ square: sq, verbose: true })
     if (moves.length) {
       setSelected(sq)
@@ -260,6 +299,7 @@ export default function ChessPage() {
     }
   }
 
+  // Отменить ход. В режиме против ИИ откатываем и ход игрока, и ответ ИИ.
   const undo = () => {
     if (thinking) return
     const g = gameRef.current
@@ -274,15 +314,16 @@ export default function ChessPage() {
     rerender()
   }
 
-  const board = game.board()
-  const historySan = game.history()
+  const board = game.board() // текущая позиция: 8×8
+  const historySan = game.history() // ходы в шахматной нотации
   const rows = []
 
+  // Собираем 64 клетки доски в массив JSX-элементов.
   for (let r = 0; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
-      const sqName = FILES[c] + (8 - r)
+      const sqName = FILES[c] + (8 - r) // например "e4"
       const piece = board[r][c]
-      const isLight = (r + c) % 2 === 0
+      const isLight = (r + c) % 2 === 0 // шахматный порядок цветов клеток
       const classes = [
         'sq',
         isLight ? 'light' : 'dark',
@@ -290,14 +331,15 @@ export default function ChessPage() {
         targets.includes(sqName) ? 'target' : '',
         lastMove && (lastMove.from === sqName || lastMove.to === sqName) ? 'last-move' : '',
       ]
-      if (piece && targets.includes(sqName)) classes.push('capture')
+      if (piece && targets.includes(sqName)) classes.push('capture') // на клетке фигура соперника
       if (piece && piece.type === 'k' && game.inCheck() && piece.color === game.turn()) {
-        classes.push('in-check')
+        classes.push('in-check') // подсветить короля под шахом
       }
       rows.push(
         <div
           key={sqName}
           className={classes.filter(Boolean).join(' ')}
+          // Немного случайный сдвиг текстуры, чтобы каждая клетка была уникальной.
           style={{ '--gx': `${80 + ((c * 53 + r * 97) % 180)}px`, '--gy': `${80 + ((c * 131 + r * 29) % 180)}px` }}
           onClick={() => onSquare(sqName)}
         >
@@ -311,6 +353,7 @@ export default function ChessPage() {
     }
   }
 
+  // Группируем историю ходов по парам (номер, ход белых, ход чёрных).
   const movePairs = []
   for (let i = 0; i < historySan.length; i += 2) {
     movePairs.push({
@@ -324,6 +367,7 @@ export default function ChessPage() {
     <main className="page">
       <h1 className="page-title">Шахматы</h1>
       <div className="game-layout">
+        {/* Левая часть: строка состояния и сама доска в деревянной рамке */}
         <div className="board-zone">
           <div className="status-bar card">
             <span className={game.isGameOver() ? 'status-final' : ''}>{statusText}</span>
@@ -342,9 +386,11 @@ export default function ChessPage() {
           </div>
         </div>
 
+        {/* Правая часть: управление партией и список ходов */}
         <aside className="game-side">
           <div className="card controls">
             <h3>Новая партия</h3>
+            {/* Выбор режима: компьютер или два игрока */}
             <div className="seg">
               <button
                 className={mode === 'ai' ? 'seg-btn active' : 'seg-btn'}
@@ -423,6 +469,7 @@ export default function ChessPage() {
             )}
           </div>
 
+          {/* Карточка с историей ходов по парам */}
           <div className="card moves-card">
             <h3>Ходы</h3>
             {movePairs.length === 0 ? (

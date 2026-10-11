@@ -3,13 +3,18 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 
+// Админ-панель сайта. Показывает статистику и позволяет управлять
+// пользователями. Какие действия доступны, зависит от роли:
+// админ сайта видит всё, но выдавать/снимать админов и удалять людей
+// может только главный администратор.
 export default function AdminPanel() {
   const { user } = useAuth()
   const [users, setUsers] = useState([])
   const [stats, setStats] = useState(null)
-  const [note, setNote] = useState('')
-  const [error, setError] = useState('')
+  const [note, setNote] = useState('')  // зелёная плашка «готово»
+  const [error, setError] = useState('') // красная плашка «ошибка»
 
+  // Загружаем сразу два набора данных: пользователей и статистику.
   const load = useCallback(async () => {
     try {
       const [u, s] = await Promise.all([
@@ -24,15 +29,18 @@ export default function AdminPanel() {
     }
   }, [])
 
+  // Грузим при первом появлении страницы.
   useEffect(() => {
     load()
   }, [load])
 
+  // Показать короткое сообщение и убрать его через 4 секунды.
   const flash = (msg) => {
     setNote(msg)
     setTimeout(() => setNote(''), 4000)
   }
 
+  // Выдать/снять права администратора, затем обновить список.
   const setStaff = async (target, flag) => {
     try {
       const res = await api(`/api/panel/users/${target.id}/staff/`, {
@@ -46,6 +54,7 @@ export default function AdminPanel() {
     }
   }
 
+  // Удалить пользователя (с подтверждением), затем обновить список.
   const removeUser = async (target) => {
     if (!window.confirm(`Удалить пользователя «${target.username}»?`)) return
     try {
@@ -57,6 +66,7 @@ export default function AdminPanel() {
     }
   }
 
+  // Является ли текущий пользователь главным админом.
   const isSuper = user.is_superuser
 
   return (
@@ -66,6 +76,7 @@ export default function AdminPanel() {
       {note && <div className="alert ok">{note}</div>}
       {error && <div className="alert">{error}</div>}
 
+      {/* Плитки со сводной статистикой */}
       {stats && (
         <div className="stat-grid wide">
           <div className="stat-box">
@@ -89,9 +100,11 @@ export default function AdminPanel() {
         </div>
       )}
 
+      {/* Таблица пользователей */}
       <div className="card table-card">
         <div className="card-head-row">
           <h3>Пользователи</h3>
+          {/* Ссылку на Django-админку видит только главный админ */}
           {isSuper ? (
             <a className="btn btn-outline small" href="/admin/" target="_blank" rel="noreferrer">
               Открыть Django-админку
@@ -131,6 +144,7 @@ export default function AdminPanel() {
                   )}
                 </td>
                 <td>
+                  {/* Кнопки действий — только для главного админа и не для других суперов */}
                   {isSuper && !u.is_superuser && (
                     <div className="btn-row">
                       {u.is_staff ? (

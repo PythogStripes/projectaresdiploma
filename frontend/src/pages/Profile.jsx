@@ -3,15 +3,19 @@ import { api } from '../api'
 import { useAuth } from '../auth'
 import { THEMES, useTheme } from '../theme'
 
+// Страница профиля: данные игрока, выбор темы оформления, выход из аккаунта
+// и личная статистика с последними партиями.
 export default function Profile() {
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
   const [summary, setSummary] = useState(null)
 
+  // Загружаем сводку по играм при открытии страницы.
   useEffect(() => {
     api('/api/auth/me/summary/').then(setSummary).catch(() => {})
   }, [])
 
+  // Человекочитаемая роль: главный админ > админ сайта > обычный игрок.
   const role = user.is_superuser
     ? 'Главный администратор'
     : user.is_staff
@@ -22,6 +26,7 @@ export default function Profile() {
     <main className="page">
       <h1 className="page-title">Профиль</h1>
       <div className="profile-layout">
+        {/* Левая колонка: кто вы, тема, выход */}
         <div className="card">
           <h2>{user.username}</h2>
           <p className="muted">
@@ -49,6 +54,7 @@ export default function Profile() {
           </div>
         </div>
 
+        {/* Правая колонка: статистика */}
         <div className="card">
           <h3>Моя статистика</h3>
           {!summary ? (

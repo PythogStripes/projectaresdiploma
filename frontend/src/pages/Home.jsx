@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import Logo from '../components/Logo'
 
+// Главная страница-визитка: логотип, описание и две большие кнопки-входа в игры.
 export default function Home() {
   return (
     <main className="page">

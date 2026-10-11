@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 
+// Вкладки таблиц лидеров: общий зачёт + отдельно по каждой игре.
 const TABS = [
   { id: 'overall', title: 'Общий зачёт' },
   { id: 'chess', title: 'Шахматы' },
@@ -11,16 +12,18 @@ const TABS = [
 
 export default function Leaderboard() {
   const { user } = useAuth()
-  const [data, setData] = useState(null)
-  const [tab, setTab] = useState('overall')
+  const [data, setData] = useState(null) // все таблицы с сервера
+  const [tab, setTab] = useState('overall') // какая вкладка активна
   const [error, setError] = useState('')
 
+  // Загружаем таблицы один раз при открытии страницы.
   useEffect(() => {
     api('/api/leaderboard/')
       .then(setData)
       .catch((e) => setError(e.message))
   }, [])
 
+  // Строки для текущей вкладки (пока данные не пришли — пусто).
   const rows = data ? data[tab] : []
 
   return (
@@ -31,6 +34,7 @@ export default function Leaderboard() {
         компьютера, сыгранные под своим аккаунтом.
       </p>
 
+      {/* Переключатель вкладок */}
       <div className="seg tabs">
         {TABS.map((t) => (
           <button
@@ -67,6 +71,7 @@ export default function Leaderboard() {
             </thead>
             <tbody>
               {(rows || []).map((r) => (
+                // Свою строку подсвечиваем классом me-row.
                 <tr key={r.username} className={user?.username === r.username ? 'me-row' : ''}>
                   <td>
                     <span className={`place p${r.place <= 3 ? r.place : 'rest'}`}>{r.place}</span>

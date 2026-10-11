@@ -3,6 +3,8 @@ import Logo from './Logo'
 import { UserIcon } from './Icons'
 import { useAuth } from '../auth'
 
+// Шапка сайта: логотип, меню и блок справа (вход/профиль).
+// Видна на всех страницах и подстраивается под роль пользователя.
 export default function Header() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -15,14 +17,16 @@ export default function Header() {
   return (
     <header className="site-header">
       <div className="header-inner">
+        {/* Логотип + название ведут на главную */}
         <Link to="/" className="brand">
           <Logo size={52} />
           <span className="brand-text">
             <span className="brand-name">АРЕС</span>
-            <span className="brand-sub">Настольный Сайт-Хаб</span>
+            <span className="brand-sub">Настольный Сайт-Хуб</span>
           </span>
         </Link>
 
+        {/* Основное меню. Ссылку на админ-панель видят только админы сайта. */}
         <nav className="main-nav">
           <NavLink to="/" end>Главная</NavLink>
           <NavLink to="/chess">Шахматы</NavLink>
@@ -31,6 +35,7 @@ export default function Header() {
           {user?.is_staff && <NavLink to="/admin-panel">Админ-панель</NavLink>}
         </nav>
 
+        {/* Правая часть: кто вошёл и кнопка выхода — либо кнопки входа/регистрации */}
         <div className="header-actions">
           {user ? (
             <div className="user-zone">

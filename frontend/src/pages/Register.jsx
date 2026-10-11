@@ -2,18 +2,23 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 
+// Страница регистрации. Сервер проверяет все правила, но совпадение паролей
+// проверяем и здесь — чтобы не гонять запрос зря.
 export default function Register() {
   const { register } = useAuth()
   const navigate = useNavigate()
+  // Все поля формы держим в одном объекте — удобно передавать на сервер.
   const [form, setForm] = useState({ username: '', email: '', password: '', password2: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  // Фабрика обработчиков onChange: set('username') вернёт функцию для нужного поля.
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value })
 
   const onSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    // Быстрая проверка до запроса: пароли должны совпасть.
     if (form.password !== form.password2) {
       setError('Пароли не совпадают.')
       return

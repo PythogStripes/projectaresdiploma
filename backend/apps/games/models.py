@@ -2,7 +2,10 @@ from django.conf import settings
 from django.db import models
 
 class GameResult(models.Model):
+    # Таблица «Результат партии» — по строке на каждую сохранённую игру.
+    # Отсюда строятся лидерборд и личная статистика игрока.
 
+    # Возможные игры и их подписи для интерфейса.
     GAME_CHOICES = [
         ("chess", "Шахматы"),
         ("tictactoe", "Крестики-нолики"),
@@ -22,6 +25,8 @@ class GameResult(models.Model):
         ("hard", "Сложный"),
     ]
 
+    # Кто играл. related_name="results" позволяет обращаться user.results.
+    # on_delete=CASCADE — при удалении пользователя его партии тоже удаляются.
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="results",
         verbose_name="Игрок",
@@ -40,6 +45,7 @@ class GameResult(models.Model):
         verbose_name_plural = "Результаты партий"
         ordering = ["-created_at"]
 
+    # Сколько очков даёт каждый результат (победа 3, ничья 1, поражение 0).
     POINTS = {"win": 3, "draw": 1, "loss": 0}
 
     @property
